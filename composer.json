@@ -1,0 +1,21 @@
+{
+  "name": "neunerlei/lockpick-bundle",
+  "description": "A bundle to integrate my lockpick package seamlessly into Symfony",
+  "type": "symfony-bundle",
+  "license": "Apache-2.0",
+  "autoload": {
+    "psr-4": {
+      "Neunerlei\\LockpickBundle\\": "src/"
+    }
+  },
+  "require": {
+    "neunerlei/lockpick": "^0.0.2"
+  },
+  "archive": {
+    "exclude": [
+      "devEnv",
+      ".ddev",
+      ".idea"
+    ]
+  }
+}
