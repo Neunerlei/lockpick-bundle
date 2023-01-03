@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "189fc2ad3543f61d9a9e5f06b3b29a2a",
+    "content-hash": "d3bf18e0c900fb190819cca76574b46a",
     "packages": [
         {
             "name": "neunerlei/filesystem",
@@ -107,16 +107,16 @@
         },
         {
             "name": "neunerlei/lockpick",
-            "version": "0.0.2",
+            "version": "0.0.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Neunerlei/lockpick.git",
-                "reference": "513ea348786211eb9649fb712b2e2f70da93f064"
+                "reference": "646ef71c489aec455c5ef3c7072c8aa1f018c85c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Neunerlei/lockpick/zipball/513ea348786211eb9649fb712b2e2f70da93f064",
-                "reference": "513ea348786211eb9649fb712b2e2f70da93f064",
+                "url": "https://api.github.com/repos/Neunerlei/lockpick/zipball/646ef71c489aec455c5ef3c7072c8aa1f018c85c",
+                "reference": "646ef71c489aec455c5ef3c7072c8aa1f018c85c",
                 "shasum": ""
             },
             "require": {
@@ -147,9 +147,9 @@
             "description": "A list of tools that helps you overcome some arbitrary restrictions while coding",
             "support": {
                 "issues": "https://github.com/Neunerlei/lockpick/issues",
-                "source": "https://github.com/Neunerlei/lockpick/tree/v0.0.2"
+                "source": "https://github.com/Neunerlei/lockpick/tree/v0.0.8"
             },
-            "time": "2023-01-03T12:16:36+00:00"
+            "time": "2023-01-04T13:47:14+00:00"
         },
         {
             "name": "psr/event-dispatcher",

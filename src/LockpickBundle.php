@@ -5,21 +5,14 @@ declare(strict_types=1);
 namespace Neunerlei\LockpickBundle;
 
 
-use Composer\Autoload\ClassLoader;
-use Neunerlei\FileSystem\Fs;
-use Neunerlei\FileSystem\Path;
 use Neunerlei\Lockpick\Override\ClassOverrider;
+use Neunerlei\LockpickBundle\DependencyInjection\LockpickExtension;
 use Neunerlei\LockpickBundle\DependencyInjection\RemoveOverriddenClassesFromPreloadPass;
-use Neunerlei\LockpickBundle\Exception\InvalidConfigException;
-use Psr\EventDispatcher\EventDispatcherInterface;
-use Symfony\Component\Config\Definition\Configurator\DefinitionConfigurator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
-use Symfony\Component\ErrorHandler\DebugClassLoader;
-use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
+use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
+use Symfony\Component\HttpKernel\Bundle\Bundle;
 
-class LockpickBundle extends AbstractBundle
+class LockpickBundle extends Bundle
 {
     public const PARAM_STORAGE_PATH = 'lockpick.classOverrides.storagePath';
     public const PARAM_AUTOLOAD_PATH = 'lockpick.classOverrides.composerAutoloaderPath';
@@ -27,54 +20,36 @@ class LockpickBundle extends AbstractBundle
 
     protected bool $initDone = false;
 
-    public function configure(DefinitionConfigurator $definition): void
+    /**
+     * @inheritDoc
+     */
+    public function createContainerExtension(): ?ExtensionInterface
     {
-        $definition->rootNode()
-            ->children()
-            /* *** */ ->arrayNode('classOverrides')->addDefaultsIfNotSet()
-            /* ****** */ ->children()
-            /* ********* */ ->scalarNode('composerAutoloadPath')
-            /* ************ */ ->defaultNull()
-            /* ************ */ ->info('The absolute path to your composer autoload.php. If omitted the script tries to find the autoloader itself')
-            /* ************ */ ->end()
-            /* ********* */ ?->scalarNode('storagePath')
-            /* ************ */ ->defaultValue('%kernel.cache_dir%/lockpickClassOverrides')
-            /* ************ */ ->info('The path where the generated class copies should be stored')
-            /* ************ */ ->end()
-            /* ********* */ ?->arrayNode('map')
-            /* ************ */ ->example([
-                'AcmeBundle\\ClassToOverride' => 'YourBundle\\ClassToOverrideWith',
-                'AnotherAcmeBundle\\AnotherClassToOverride' => 'YourBundle\\AnotherClassToOverrideWith'
-            ])
-            /* ************ */ ->info('A map of classes to override as key, and the list of classes to override them with as values')
-            /* ************ */ ->scalarPrototype()->end();
+        $ext = parent::createContainerExtension();
+
+        if ($ext instanceof LockpickExtension) {
+            $ext->setOnBuildRunner(function (ContainerBuilder $container) {
+                $parameterBag = $container->getParameterBag();
+
+                $this->runOnBuildAndBoot(
+                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_STORAGE_PATH)),
+                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_AUTOLOAD_PATH)),
+                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_OVERRIDE_MAP))
+                );
+
+                ClassOverrider::build();
+            });
+        }
+
+        return $ext;
     }
 
-    public function loadExtension(array $config, ContainerConfigurator $container, ContainerBuilder $builder): void
-    {
-        $container->import('../config/services.yaml');
-
-        $builder->setParameter(static::PARAM_STORAGE_PATH, $config['classOverrides']['storagePath']);
-        $builder->setParameter(static::PARAM_OVERRIDE_MAP, $config['classOverrides']['map'] ?? []);
-        $builder->setParameter(static::PARAM_AUTOLOAD_PATH,
-            $this->findComposerAutoloaderPath($config['classOverrides']['composerAutoloadPath']));
-
-        $parameterBag = $builder->getParameterBag();
-
-        $this->runOnBuildAndBoot(
-            $parameterBag->resolveValue($parameterBag->get(static::PARAM_STORAGE_PATH)),
-            $parameterBag->resolveValue($parameterBag->get(static::PARAM_AUTOLOAD_PATH)),
-            $parameterBag->resolveValue($parameterBag->get(static::PARAM_OVERRIDE_MAP))
-        );
-    }
 
     /**
      * @inheritDoc
      */
     public function build(ContainerBuilder $container): void
     {
-        parent::build($container);
-
         $container->addCompilerPass(new RemoveOverriddenClassesFromPreloadPass(), priority: -500);
     }
 
@@ -85,18 +60,13 @@ class LockpickBundle extends AbstractBundle
     {
         parent::boot();
 
+        $storagePath = $this->container->getParameter(static::PARAM_STORAGE_PATH);
+
         $this->runOnBuildAndBoot(
-            $this->container->getParameter(static::PARAM_STORAGE_PATH),
+            $storagePath,
             $this->container->getParameter(static::PARAM_AUTOLOAD_PATH),
             $this->container->getParameter(static::PARAM_OVERRIDE_MAP)
         );
-
-        // Auto-inject the event dispatcher into the overrider
-        $eventDispatcher = $this->container->get('event_dispatcher',
-            ContainerInterface::NULL_ON_INVALID_REFERENCE);
-        if ($eventDispatcher instanceof EventDispatcherInterface) {
-            ClassOverrider::setEventDispatcher($eventDispatcher);
-        }
     }
 
     /**
@@ -128,6 +98,14 @@ class LockpickBundle extends AbstractBundle
         }
 
         $this->initializeClassOverrider($storagePath, $composerAutoloadPath);
+
+        // Auto-inject the event dispatcher into the overrider
+//        if (isset($this->container)) {
+//            $eventDispatcher = $this->container->get('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE);
+//            if ($eventDispatcher instanceof EventDispatcherInterface) {
+//                ClassOverrider::setEventDispatcher($eventDispatcher);
+//            }
+//        }
 
         if ($allowOverridesOfLoadedClasses) {
             ClassOverrider::getAutoLoader()->getOverrideList()->setAllowToRegisterLoadedClasses(true);
@@ -161,65 +139,16 @@ class LockpickBundle extends AbstractBundle
         }
     }
 
-    /**
-     * Internal helper to find the path to the composer autoload.php which is used to
-     * find the actual autoloader implementation we are using
-     *
-     * @param string|null $autoloaderPath
-     * @return string
-     */
-    protected function findComposerAutoloaderPath(?string $autoloaderPath = null): string
+    protected function rebuildAllClassOverridesIfNotPresent(): void
     {
-        // If the path was configured we can go the easy route
-        if (!empty($autoloaderPath)) {
-            if (!Fs::exists($autoloaderPath) || !is_file($autoloaderPath)) {
-                throw new InvalidConfigException(
-                    sprintf(
-                        'The file "%s" you configured as autoload path, does not exist',
-                        $autoloaderPath
-                    )
-                );
-            }
-
-            $loader = require $autoloaderPath;
-
-            if (!$loader instanceof ClassLoader) {
-                throw new InvalidConfigException(
-                    sprintf(
-                        'The file "%s" you configured as autoload path, did not return a composer class loader instance',
-                        $autoloaderPath
-                    )
-                );
-            }
-
-            return $autoloaderPath;
+        $markerFile = 'bundle-rebuild-marker.txt';
+        $io = ClassOverrider::getIoDriver();
+        if ($io->hasFile($markerFile)) {
+            return;
         }
 
-        // Let's try to find it...
-        foreach (spl_autoload_functions() as $callback) {
-            if (!is_array($callback)) {
-                continue;
-            }
-
-            if (!isset($callback[0])) {
-                continue;
-            }
-
-            if ($callback[0] instanceof DebugClassLoader) {
-                $callback = $callback[0]->getClassLoader();
-            }
-
-            if (!isset($callback[0]) || !$callback[0] instanceof ClassLoader) {
-                continue;
-            }
-
-            $classLoaderFile = (new \ReflectionObject($callback[0]))->getFileName();
-            return Path::join($classLoaderFile, '../../', 'autoload.php');
-        }
-
-        throw new InvalidConfigException(
-            'Failed to automatically detect the composer class loader, based on your autoload functions, please specify the "lockpick.classOverrides.composerAutoloadPath" manually in your configuration'
-        );
+        ClassOverrider::build();
+        $io->setFileContent($markerFile, '');
     }
 
 }

@@ -14,7 +14,7 @@ Install this package using composer:
 composer require neunerlei/lockpick-bundle
 ```
 
-This bundle was designed against Symfony 6.1 and currently can\'t be used with older versions.
+This bundle was tested against Symfony 5.4 and 6.1 and.
 
 ## Configuration
 

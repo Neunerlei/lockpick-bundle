@@ -9,7 +9,7 @@
     }
   },
   "require": {
-    "neunerlei/lockpick": "^0.0.2"
+    "neunerlei/lockpick": "^0.0.8"
   },
   "archive": {
     "exclude": [

@@ -1,6 +1,6 @@
 {
     "neunerlei/lockpick-bundle": {
-        "version": "dev-main"
+        "version": "dev-master"
     },
     "symfony/console": {
         "version": "6.2",

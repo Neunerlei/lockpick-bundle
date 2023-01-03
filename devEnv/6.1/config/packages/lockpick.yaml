@@ -1,0 +1,4 @@
+lockpick:
+  classOverrides:
+    map:
+      Symfony\Component\HttpFoundation\UrlHelper: App\Override\NotSoFinalUrlHelper

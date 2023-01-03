@@ -4,21 +4,26 @@
   "minimum-stability": "dev",
   "prefer-stable": true,
   "require": {
-    "php": ">=8.1",
+    "php": ">=7.2.5",
     "ext-ctype": "*",
     "ext-iconv": "*",
-    "neunerlei/lockpick-bundle": "dev-main",
-    "symfony/console": "6.2.*",
-    "symfony/dotenv": "6.2.*",
-    "symfony/flex": "^2",
-    "symfony/framework-bundle": "6.2.*",
-    "symfony/runtime": "6.2.*",
-    "symfony/yaml": "6.2.*"
+    "neunerlei/lockpick-bundle": "dev-master",
+    "symfony/console": "5.4.*",
+    "symfony/dotenv": "5.4.*",
+    "symfony/flex": "^1.17|^2",
+    "symfony/framework-bundle": "5.4.*",
+    "symfony/runtime": "5.4.*",
+    "symfony/yaml": "5.4.*"
   },
   "config": {
     "allow-plugins": {
+      "composer/package-versions-deprecated": true,
       "symfony/flex": true,
       "symfony/runtime": true
+    },
+    "optimize-autoloader": true,
+    "preferred-install": {
+      "*": "dist"
     },
     "sort-packages": true
   },
@@ -35,11 +40,7 @@
   "replace": {
     "symfony/polyfill-ctype": "*",
     "symfony/polyfill-iconv": "*",
-    "symfony/polyfill-php72": "*",
-    "symfony/polyfill-php73": "*",
-    "symfony/polyfill-php74": "*",
-    "symfony/polyfill-php80": "*",
-    "symfony/polyfill-php81": "*"
+    "symfony/polyfill-php72": "*"
   },
   "scripts": {
     "auto-scripts": {
@@ -59,13 +60,13 @@
   "extra": {
     "symfony": {
       "allow-contrib": false,
-      "require": "6.2.*"
+      "require": "5.4.*"
     }
   },
   "repositories": [
     {
       "type": "path",
-      "url": "../"
+      "url": "../../"
     }
   ]
 }
