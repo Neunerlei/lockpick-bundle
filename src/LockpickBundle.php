@@ -8,7 +8,9 @@ namespace Neunerlei\LockpickBundle;
 use Neunerlei\Lockpick\Override\ClassOverrider;
 use Neunerlei\LockpickBundle\DependencyInjection\LockpickExtension;
 use Neunerlei\LockpickBundle\DependencyInjection\RemoveOverriddenClassesFromPreloadPass;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
@@ -100,12 +102,12 @@ class LockpickBundle extends Bundle
         $this->initializeClassOverrider($storagePath, $composerAutoloadPath);
 
         // Auto-inject the event dispatcher into the overrider
-//        if (isset($this->container)) {
-//            $eventDispatcher = $this->container->get('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE);
-//            if ($eventDispatcher instanceof EventDispatcherInterface) {
-//                ClassOverrider::setEventDispatcher($eventDispatcher);
-//            }
-//        }
+        if (isset($this->container)) {
+            $eventDispatcher = $this->container->get('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE);
+            if ($eventDispatcher instanceof EventDispatcherInterface) {
+                ClassOverrider::setEventDispatcher($eventDispatcher);
+            }
+        }
 
         if ($allowOverridesOfLoadedClasses) {
             ClassOverrider::getAutoLoader()->getOverrideList()->setAllowToRegisterLoadedClasses(true);
