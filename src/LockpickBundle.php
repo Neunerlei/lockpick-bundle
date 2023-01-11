@@ -6,6 +6,7 @@ namespace Neunerlei\LockpickBundle;
 
 
 use Neunerlei\Lockpick\Override\ClassOverrider;
+use Neunerlei\LockpickBundle\Adapter\DelegateClassLoader;
 use Neunerlei\LockpickBundle\DependencyInjection\LockpickExtension;
 use Neunerlei\LockpickBundle\DependencyInjection\RemoveOverriddenClassesFromPreloadPass;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 class LockpickBundle extends Bundle
 {
     public const PARAM_STORAGE_PATH = 'lockpick.classOverrides.storagePath';
-    public const PARAM_AUTOLOAD_PATH = 'lockpick.classOverrides.composerAutoloaderPath';
+    public const PARAM_AUTOLOAD_PATHS = 'lockpick.classOverrides.composerAutoloaderPaths';
     public const PARAM_OVERRIDE_MAP = 'lockpick.classOverrides.map';
 
     protected bool $initDone = false;
@@ -35,7 +36,7 @@ class LockpickBundle extends Bundle
 
                 $this->runOnBuildAndBoot(
                     $parameterBag->resolveValue($parameterBag->get(static::PARAM_STORAGE_PATH)),
-                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_AUTOLOAD_PATH)),
+                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_AUTOLOAD_PATHS)),
                     $parameterBag->resolveValue($parameterBag->get(static::PARAM_OVERRIDE_MAP))
                 );
 
@@ -66,7 +67,7 @@ class LockpickBundle extends Bundle
 
         $this->runOnBuildAndBoot(
             $storagePath,
-            $this->container->getParameter(static::PARAM_AUTOLOAD_PATH),
+            $this->container->getParameter(static::PARAM_AUTOLOAD_PATHS),
             $this->container->getParameter(static::PARAM_OVERRIDE_MAP)
         );
     }
@@ -76,13 +77,13 @@ class LockpickBundle extends Bundle
      * This has to be done once at build and once at boot time in order to catch all the possible classes.
      *
      * @param string $storagePath
-     * @param string $composerAutoloadPath
+     * @param array $composerAutoloadPaths
      * @param array $overrideMap
      * @return void
      */
     protected function runOnBuildAndBoot(
         string $storagePath,
-        string $composerAutoloadPath,
+        array  $composerAutoloadPaths,
         array  $overrideMap
     ): void
     {
@@ -99,7 +100,7 @@ class LockpickBundle extends Bundle
             $allowOverridesOfLoadedClasses = true;
         }
 
-        $this->initializeClassOverrider($storagePath, $composerAutoloadPath);
+        $this->initializeClassOverrider($storagePath, $composerAutoloadPaths);
 
         // Auto-inject the event dispatcher into the overrider
         if (isset($this->container)) {
@@ -120,12 +121,19 @@ class LockpickBundle extends Bundle
         }
     }
 
-    protected function initializeClassOverrider(string $storagePath, string $composerAutoloadPath): void
+    protected function initializeClassOverrider(string $storagePath, array $composerAutoloadPaths): void
     {
+        // If there is just a single classloader use it, otherwise use the delegate class loader
+        if (count($composerAutoloadPaths) === 1) {
+            $autoloader = require reset($composerAutoloadPaths);
+        } else {
+            $autoloader = new DelegateClassLoader($composerAutoloadPaths);
+        }
+
         ClassOverrider::init(
             ClassOverrider::makeAutoLoaderByStoragePath(
                 $storagePath,
-                require $composerAutoloadPath
+                $autoloader
             )
         );
     }

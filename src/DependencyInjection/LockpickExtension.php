@@ -46,8 +46,8 @@ class LockpickExtension extends Extension
 
         $container->setParameter(LockpickBundle::PARAM_STORAGE_PATH, $config['classOverrides']['storagePath']);
         $container->setParameter(LockpickBundle::PARAM_OVERRIDE_MAP, $config['classOverrides']['map'] ?? []);
-        $container->setParameter(LockpickBundle::PARAM_AUTOLOAD_PATH,
-            $this->findComposerAutoloaderPath($config['classOverrides']['composerAutoloadPath'])
+        $container->setParameter(LockpickBundle::PARAM_AUTOLOAD_PATHS,
+            $this->findComposerAutoloaderPaths($config['classOverrides']['composerAutoloadPath'])
         );
 
         if (is_callable($this->onBuildRunner ?? null)) {
@@ -60,9 +60,10 @@ class LockpickExtension extends Extension
      * find the actual autoloader implementation we are using
      *
      * @param string|null $autoloaderPath
-     * @return string
+     * @return array
+     * @throws \ReflectionException
      */
-    protected function findComposerAutoloaderPath(?string $autoloaderPath = null): string
+    protected function findComposerAutoloaderPaths(?string $autoloaderPath = null): array
     {
         // If the path was configured we can go the easy route
         if (!empty($autoloaderPath)) {
@@ -86,8 +87,10 @@ class LockpickExtension extends Extension
                 );
             }
 
-            return $autoloaderPath;
+            return [$autoloaderPath];
         }
+
+        $paths = [];
 
         // Let's try to find it...
         foreach (spl_autoload_functions() as $callback) {
@@ -103,12 +106,21 @@ class LockpickExtension extends Extension
                 $callback = $callback[0]->getClassLoader();
             }
 
+            if (!is_array($callback)) {
+                continue;
+            }
+
             if (!isset($callback[0]) || !$callback[0] instanceof ClassLoader) {
                 continue;
             }
 
-            $classLoaderFile = (new \ReflectionObject($callback[0]))->getFileName();
-            return Path::join($classLoaderFile, '../../', 'autoload.php');
+            $ref = new \ReflectionProperty($callback[0], 'vendorDir');
+            $ref->setAccessible(true);
+            $paths[] = Path::join($ref->getValue($callback[0]), 'autoload.php');
+        }
+
+        if (!empty($paths)) {
+            return array_unique($paths);
         }
 
         throw new InvalidConfigException(
