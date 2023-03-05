@@ -4,50 +4,12 @@ declare(strict_types=1);
 
 namespace Neunerlei\LockpickBundle;
 
-
-use Neunerlei\Lockpick\Override\ClassOverrider;
-use Neunerlei\LockpickBundle\Adapter\DelegateClassLoader;
-use Neunerlei\LockpickBundle\DependencyInjection\LockpickExtension;
 use Neunerlei\LockpickBundle\DependencyInjection\RemoveOverriddenClassesFromPreloadPass;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\Bundle;
 
 class LockpickBundle extends Bundle
 {
-    public const PARAM_STORAGE_PATH = 'lockpick.classOverrides.storagePath';
-    public const PARAM_AUTOLOAD_PATHS = 'lockpick.classOverrides.composerAutoloaderPaths';
-    public const PARAM_OVERRIDE_MAP = 'lockpick.classOverrides.map';
-
-    protected bool $initDone = false;
-
-    /**
-     * @inheritDoc
-     */
-    public function createContainerExtension(): ?ExtensionInterface
-    {
-        $ext = parent::createContainerExtension();
-
-        if ($ext instanceof LockpickExtension) {
-            $ext->setOnBuildRunner(function (ContainerBuilder $container) {
-                $parameterBag = $container->getParameterBag();
-
-                $this->runOnBuildAndBoot(
-                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_STORAGE_PATH)),
-                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_AUTOLOAD_PATHS)),
-                    $parameterBag->resolveValue($parameterBag->get(static::PARAM_OVERRIDE_MAP))
-                );
-
-                ClassOverrider::build();
-            });
-        }
-
-        return $ext;
-    }
-
-
     /**
      * @inheritDoc
      */
@@ -59,106 +21,12 @@ class LockpickBundle extends Bundle
     /**
      * @inheritDoc
      */
-    public function boot(): void
+    public function shutdown(): void
     {
-        parent::boot();
+        $kernel = $this->container->get('kernel');
 
-        $storagePath = $this->container->getParameter(static::PARAM_STORAGE_PATH);
-
-        $this->runOnBuildAndBoot(
-            $storagePath,
-            $this->container->getParameter(static::PARAM_AUTOLOAD_PATHS),
-            $this->container->getParameter(static::PARAM_OVERRIDE_MAP)
-        );
-    }
-
-    /**
-     * Main boot process of registering our custom autoloader.
-     * This has to be done once at build and once at boot time in order to catch all the possible classes.
-     *
-     * @param string $storagePath
-     * @param array $composerAutoloadPaths
-     * @param array $overrideMap
-     * @return void
-     */
-    protected function runOnBuildAndBoot(
-        string $storagePath,
-        array  $composerAutoloadPaths,
-        array  $overrideMap
-    ): void
-    {
-        if ($this->initDone) {
-            return;
-        }
-
-        $this->initDone = true;
-
-        // This happens when the cache is cleared and symfony reloads the container
-        // in this case we need to allow overrides to be registered (because the config might have changed)
-        $allowOverridesOfLoadedClasses = false;
-        if (ClassOverrider::isInitialized()) {
-            $allowOverridesOfLoadedClasses = true;
-        }
-
-        $this->initializeClassOverrider($storagePath, $composerAutoloadPaths);
-
-        // Auto-inject the event dispatcher into the overrider
-        if (isset($this->container)) {
-            $eventDispatcher = $this->container->get('event_dispatcher', ContainerInterface::NULL_ON_INVALID_REFERENCE);
-            if ($eventDispatcher instanceof EventDispatcherInterface) {
-                ClassOverrider::setEventDispatcher($eventDispatcher);
-            }
-        }
-
-        if ($allowOverridesOfLoadedClasses) {
-            ClassOverrider::getAutoLoader()->getOverrideList()->setAllowToRegisterLoadedClasses(true);
-        }
-
-        $this->applyClassOverrides($overrideMap);
-
-        if ($allowOverridesOfLoadedClasses) {
-            ClassOverrider::getAutoLoader()->getOverrideList()->setAllowToRegisterLoadedClasses(false);
+        if ($kernel && is_callable([$kernel, 'triggerShutdownForOverrideGenerator'])) {
+            $kernel->triggerShutdownForOverrideGenerator();
         }
     }
-
-    protected function initializeClassOverrider(string $storagePath, array $composerAutoloadPaths): void
-    {
-        // If there is just a single classloader use it, otherwise use the delegate class loader
-        if (count($composerAutoloadPaths) === 1) {
-            $autoloader = require reset($composerAutoloadPaths);
-        } else {
-            $autoloader = new DelegateClassLoader($composerAutoloadPaths);
-        }
-
-        ClassOverrider::init(
-            ClassOverrider::makeAutoLoaderByStoragePath(
-                $storagePath,
-                $autoloader
-            )
-        );
-    }
-
-    protected function applyClassOverrides(array $overrideMap): void
-    {
-        if (empty($overrideMap)) {
-            return;
-        }
-
-        foreach ($overrideMap as $classToOverride => $classToOverrideWith) {
-            ClassOverrider::registerOverride(ltrim($classToOverride, '\\'), ltrim($classToOverrideWith, '\\'));
-        }
-    }
-
-    protected function rebuildAllClassOverridesIfNotPresent(): void
-    {
-        $markerFile = 'bundle-rebuild-marker.txt';
-        $io = ClassOverrider::getIoDriver();
-        if ($io->hasFile($markerFile)) {
-            return;
-        }
-
-        ClassOverrider::build();
-        $io->setFileContent($markerFile, '');
-    }
-
 }

@@ -7,7 +7,7 @@
     "php": ">=7.2.5",
     "ext-ctype": "*",
     "ext-iconv": "*",
-    "neunerlei/lockpick-bundle": "dev-master",
+    "neunerlei/lockpick-bundle": "*",
     "symfony/console": "5.4.*",
     "symfony/dotenv": "5.4.*",
     "symfony/flex": "^1.17|^2",
