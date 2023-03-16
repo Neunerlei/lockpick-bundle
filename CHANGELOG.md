@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### 0.0.5 (2023-03-16)
+
+
+### Bug Fixes
+
+* **ClassOverridesKernelTrait:** fix broken cli "debug" commands ([6e218fb](https://github.com/Neunerlei/lockpick-bundle/commit/6e218fb27e387df4a3a2ca0927b3c22f3322d44b))
+
 ### 0.0.4 (2023-03-05)
 
 
