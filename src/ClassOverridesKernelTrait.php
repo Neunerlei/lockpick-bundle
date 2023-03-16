@@ -15,6 +15,7 @@ trait ClassOverridesKernelTrait
 {
     protected OverrideGeneratorBinder $overrideGeneratorBinder;
     protected bool $rebindAfterReboot = false;
+    protected static int $lastBootObjectId = 0;
 
     /**
      * Internal method to trigger a rebind after the kernel was rebooted.
@@ -47,13 +48,17 @@ trait ClassOverridesKernelTrait
             // Handle reboot
             if ($this->rebindAfterReboot) {
                 $this->rebindAfterReboot = false;
-                sleep(5);
                 $this->overrideGeneratorBinder->rebind();
                 return;
             }
 
             // Failsafe if the boot method would be called multiple times
             if (true === $this->booted) {
+                return;
+            }
+
+            // Failsafe if the kernel has been cloned and was rebooted
+            if (static::$lastBootObjectId > 0 && static::$lastBootObjectId !== spl_object_id($this)) {
                 return;
             }
 
@@ -68,6 +73,8 @@ trait ClassOverridesKernelTrait
         $configurator($config);
 
         $this->overrideGeneratorBinder->bind($config);
+
+        static::$lastBootObjectId = spl_object_id($this);
     }
 
     /**
